@@ -1,0 +1,14 @@
+/Users/yc/IdeaProjects/pytest/yuque/mindnest/src-tauri/target/debug/deps/block2-09616748bf0f5067.d: /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/lib.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/abi.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/block.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/debug.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/encoding.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/ffi.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/global.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/rc_block.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/stack.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/traits.rs
+
+/Users/yc/IdeaProjects/pytest/yuque/mindnest/src-tauri/target/debug/deps/libblock2-09616748bf0f5067.rmeta: /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/lib.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/abi.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/block.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/debug.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/encoding.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/ffi.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/global.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/rc_block.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/stack.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/traits.rs
+
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/lib.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/abi.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/block.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/debug.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/encoding.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/ffi.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/global.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/rc_block.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/stack.rs:
+/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/block2-0.6.2/src/traits.rs:

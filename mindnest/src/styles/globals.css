@@ -1,0 +1,247 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222 47% 6%;
+    --foreground: 210 40% 98%;
+    --card: 222 47% 8%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222 47% 8%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 217 33% 17%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 17%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 17%;
+    --input: 217 33% 17%;
+    --ring: 217 91% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* 语雀风格的自定义样式 */
+@layer components {
+  /* 圆角按钮 */
+  .btn-yuque {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-medium transition-all duration-200;
+    @apply hover:shadow-md active:scale-95;
+  }
+
+  /* 卡片样式 */
+  .card-yuque {
+    @apply bg-card border border-border rounded-2xl shadow-sm;
+    @apply hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* 输入框样式 */
+  .input-yuque {
+    @apply px-4 py-2.5 bg-muted/50 border border-border rounded-xl;
+    @apply focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/50;
+    @apply transition-all duration-200;
+  }
+
+  /* 悬浮按钮 */
+  .fab-yuque {
+    @apply fixed bottom-8 right-8 w-14 h-14 rounded-full shadow-lg;
+    @apply bg-primary text-primary-foreground;
+    @apply flex items-center justify-center;
+    @apply hover:shadow-xl hover:scale-105 active:scale-95;
+    @apply transition-all duration-200;
+  }
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.2);
+  border-radius: 100px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.3);
+}
+
+/* 选择文字样式 */
+::selection {
+  background: hsl(var(--primary) / 0.2);
+}
+
+/* 代码高亮 */
+pre {
+  @apply rounded-xl overflow-x-auto;
+}
+
+code {
+  @apply font-mono text-sm;
+}
+
+/* KaTeX 数学公式样式 */
+.katex {
+  font-size: 1.1em;
+}
+
+.katex-display {
+  margin: 1.5em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* 动画 */
+@keyframes fade-in {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(-10px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-in {
+  animation: slide-in 0.3s ease-out;
+}
+
+/* 拖拽时的样式 */
+.dragging {
+  opacity: 0.5;
+  transform: scale(1.02);
+}
+
+/* 编辑器特定样式 */
+.editor-block {
+  @apply relative py-1 px-2 -mx-2 rounded-lg transition-all duration-200;
+}
+
+.editor-block:hover {
+  @apply bg-muted/50;
+}
+
+.editor-block:focus-within {
+  @apply bg-muted/30;
+}
+
+/* 提示框样式 */
+.callout {
+  @apply my-4 p-4 rounded-xl border-l-4;
+}
+
+.callout-info {
+  @apply bg-blue-50 border-blue-400 text-blue-900;
+}
+
+.callout-warning {
+  @apply bg-amber-50 border-amber-400 text-amber-900;
+}
+
+.callout-error {
+  @apply bg-red-50 border-red-400 text-red-900;
+}
+
+.callout-success {
+  @apply bg-green-50 border-green-400 text-green-900;
+}
+
+/* 任务列表 */
+.task-list-item {
+  @apply flex items-start gap-2 my-1;
+}
+
+.task-list-item input[type="checkbox"] {
+  @apply mt-1.5 rounded border-border cursor-pointer;
+}
+
+/* 表格样式 */
+.yuque-table {
+  @apply w-full border-collapse my-4;
+}
+
+.yuque-table th,
+.yuque-table td {
+  @apply border border-border px-4 py-2 text-left;
+}
+
+.yuque-table th {
+  @apply bg-muted font-semibold;
+}
+
+/* 思维导图节点 */
+.mindmap-node {
+  @apply px-4 py-2 rounded-xl bg-white shadow-md border-2;
+  @apply transition-all duration-200 hover:shadow-lg;
+}
+
+/* 响应式隐藏 */
+@media (max-width: 640px) {
+  .hide-mobile {
+    display: none;
+  }
+}
+
+/* 暗色模式微调 */
+.dark .callout-info {
+  @apply bg-blue-900/30 border-blue-500;
+}
+
+.dark .callout-warning {
+  @apply bg-amber-900/30 border-amber-500;
+}
+
+.dark .callout-error {
+  @apply bg-red-900/30 border-red-500;
+}
+
+.dark .callout-success {
+  @apply bg-green-900/30 border-green-500;
+}
