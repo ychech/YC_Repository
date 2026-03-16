@@ -44,19 +44,25 @@ const DocItem = memo(function DocItem({
 
   return (
     <div
-      draggable
-      onDragStart={(e) => onDragStart(e, doc.id)}
       className={cn(
-        "group flex items-center gap-1 py-1.5 pr-2 rounded-lg transition-colors cursor-pointer",
+        "group flex items-center gap-1 py-1.5 pr-2 rounded-lg transition-colors",
         isActive ? "bg-accent text-accent-foreground" : "hover:bg-accent/50",
         isDragging && "opacity-50"
       )}
     >
-      <GripVertical className="w-3 h-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100 cursor-grab flex-shrink-0" />
+      {/* 拖拽手柄 */}
+      <div
+        draggable
+        onDragStart={(e) => onDragStart(e, doc.id)}
+        className="p-0.5 cursor-grab active:cursor-grabbing"
+        title="拖拽到分组"
+      >
+        <GripVertical className="w-3 h-3 text-muted-foreground/30 opacity-0 group-hover:opacity-100" />
+      </div>
 
       <Link
         to={`/doc/${doc.id}`}
-        className="flex items-center gap-2 flex-1 min-w-0"
+        className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer"
       >
         <div className={cn(
           "w-5 h-5 rounded flex items-center justify-center flex-shrink-0",
@@ -199,7 +205,9 @@ const FolderItem = memo(function FolderItem({
             <button
               onClick={(e) => {
                 e.stopPropagation()
-                onDeleteFolder(folder.id)
+                if (confirm(`确定要删除分组"${folder.name}"吗？分组内的文档将变为未分组状态。`)) {
+                  onDeleteFolder(folder.id)
+                }
               }}
               className="p-1 hover:bg-destructive/10 rounded text-muted-foreground hover:text-destructive cursor-pointer"
               title="删除分组"

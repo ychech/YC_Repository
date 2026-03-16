@@ -433,6 +433,12 @@ impl Database {
     
     pub fn delete_folder(&self, folder_id: &str) -> Result<()> {
         let conn = self.conn.lock().unwrap();
+        // 先将文件夹内的文档设置为未分组
+        conn.execute(
+            "UPDATE documents SET folder_id = NULL, updated_at = ?1 WHERE folder_id = ?2",
+            params![Utc::now().to_rfc3339(), folder_id],
+        )?;
+        // 再删除文件夹
         conn.execute("DELETE FROM folders WHERE id = ?1", [folder_id])?;
         Ok(())
     }
