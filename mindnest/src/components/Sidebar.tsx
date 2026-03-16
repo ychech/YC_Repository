@@ -29,15 +29,18 @@ const DocItem = memo(function DocItem({
   doc,
   isActive,
   isDragging,
-  onDragStart
+  onDragStart,
+  onDelete
 }: {
   doc: { id: string; title: string; type: DocumentType }
   isActive: boolean
   isDragging: boolean
   onDragStart: (e: React.DragEvent, docId: string) => void
+  onDelete?: (docId: string) => void
 }) {
   const Icon = typeIcons[doc.type] || FileText
   const colorClass = typeColors[doc.type]
+  const [showMenu, setShowMenu] = useState(false)
 
   return (
     <div
@@ -63,6 +66,46 @@ const DocItem = memo(function DocItem({
         </div>
         <span className="truncate flex-1 text-sm">{doc.title || '无标题'}</span>
       </Link>
+
+      {/* 更多操作菜单 */}
+      <div className="relative">
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setShowMenu(!showMenu)
+          }}
+          className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-accent/80 transition-all"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+          </svg>
+        </button>
+
+        {showMenu && (
+          <>
+            <div 
+              className="fixed inset-0 z-40" 
+              onClick={() => setShowMenu(false)}
+            />
+            <div className="absolute right-0 top-full mt-1 w-32 bg-popover border border-border rounded-lg shadow-xl z-50 py-1">
+              {onDelete && (
+                <button
+                  onClick={() => {
+                    if (confirm(`确定要删除"${doc.title || '无标题'}"吗？`)) {
+                      onDelete(doc.id)
+                    }
+                    setShowMenu(false)
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-sm text-left text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  删除
+                </button>
+              )}
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 })
@@ -80,7 +123,8 @@ const FolderItem = memo(function FolderItem({
   onDragLeave,
   onDrop,
   onCreateDoc,
-  onDeleteFolder
+  onDeleteFolder,
+  onDeleteDoc
 }: {
   folder: { id: string; name: string; icon?: string }
   docs: any[]
@@ -94,6 +138,7 @@ const FolderItem = memo(function FolderItem({
   onDrop: (e: React.DragEvent, folderId: string) => void
   onCreateDoc: (folderId: string) => void
   onDeleteFolder: (folderId: string) => void
+  onDeleteDoc?: (docId: string) => void
 }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const location = useLocation()
@@ -176,6 +221,7 @@ const FolderItem = memo(function FolderItem({
               isActive={location.pathname === `/doc/${doc.id}`}
               isDragging={draggingDocId === doc.id}
               onDragStart={onDragStart}
+              onDelete={onDeleteDoc}
             />
           ))}
         </div>
@@ -192,6 +238,7 @@ export function Sidebar() {
     createDocument,
     listDocuments,
     moveDocument,
+    deleteDocument,
   } = useDocumentStore()
   const {
     knowledgeBases,
@@ -347,6 +394,20 @@ export function Sidebar() {
         alert('创建失败: ' + String(err))
       })
   }
+
+  // 删除文档
+  const handleDeleteDocument = useCallback(async (docId: string) => {
+    try {
+      await deleteDocument(docId)
+      // 如果当前正在查看被删除的文档，导航到首页
+      if (location.pathname === `/doc/${docId}`) {
+        navigate('/')
+      }
+    } catch (error) {
+      console.error('[Sidebar] Failed to delete document:', error)
+      alert('删除失败: ' + String(error))
+    }
+  }, [deleteDocument, location.pathname, navigate])
 
   // 拖拽处理
   const handleDragStart = useCallback((e: React.DragEvent, docId: string) => {
@@ -567,6 +628,7 @@ export function Sidebar() {
                 onDrop={handleDropOnFolder}
                 onCreateDoc={handleCreateInFolder}
                 onDeleteFolder={deleteFolder}
+                onDeleteDoc={handleDeleteDocument}
               />
             ))}
 
@@ -578,6 +640,7 @@ export function Sidebar() {
                 isActive={currentPath === `/doc/${doc.id}`}
                 isDragging={draggingDocId === doc.id}
                 onDragStart={handleDragStart}
+                onDelete={handleDeleteDocument}
               />
             ))}
           </div>

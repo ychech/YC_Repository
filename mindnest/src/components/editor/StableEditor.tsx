@@ -14,7 +14,7 @@ interface Block {
   id: string
   type: BlockType
   content: string
-  meta?: { checked?: boolean; language?: string; theme?: string }
+  meta?: { checked?: boolean; language?: string; theme?: string; name?: string }
 }
 
 interface CommandItem {
@@ -114,9 +114,12 @@ const CodeBlock = memo(function CodeBlock({
   const [localContent, setLocalContent] = useState(block.content)
   const [language, setLanguage] = useState(block.meta?.language || 'plaintext')
   const [theme, setTheme] = useState(block.meta?.theme || 'darcula')
+  const [blockName, setBlockName] = useState(block.meta?.name || '')
   const [isCollapsed, setIsCollapsed] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     setLocalContent(block.content)
@@ -149,8 +152,25 @@ const CodeBlock = memo(function CodeBlock({
 
   const handleThemeChange = (newTheme: string) => {
     setTheme(newTheme)
-    onUpdate(block.id, localContent, { language, theme: newTheme })
+    onUpdate(block.id, localContent, { language, theme: newTheme, name: blockName })
   }
+
+  const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newName = e.target.value
+    setBlockName(newName)
+    onUpdate(block.id, localContent, { language, theme, name: newName })
+  }
+
+  // 点击外部关闭更多菜单
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // 处理键盘事件
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -237,11 +257,11 @@ const CodeBlock = memo(function CodeBlock({
     <div className={cn("my-2 rounded-lg overflow-hidden border", styles.border, styles.bg)}>
       {/* 代码块头部 */}
       <div className={cn("flex items-center justify-between px-3 py-2 border-b", styles.headerBg, styles.border)}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
           {/* 折叠按钮 */}
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}
-            className={cn("p-1 rounded transition-transform duration-200",
+            className={cn("p-1 rounded transition-transform duration-200 flex-shrink-0",
               isCollapsed ? "rotate-[-90deg]" : "",
               theme === 'github' ? 'hover:bg-gray-200 text-gray-600' : 'hover:bg-white/10 text-gray-400 hover:text-white'
             )}
@@ -251,6 +271,19 @@ const CodeBlock = memo(function CodeBlock({
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>
           </button>
+
+          {/* 代码块名称输入 */}
+          <input
+            type="text"
+            value={blockName}
+            onChange={handleNameChange}
+            placeholder="请输入代码块名称"
+            className={cn("text-sm bg-transparent outline-none flex-1 min-w-0",
+              theme === 'github' 
+                ? 'text-gray-700 placeholder:text-gray-400' 
+                : 'text-gray-300 placeholder:text-gray-500'
+            )}
+          />
 
           <select 
             className={cn("text-xs outline-none cursor-pointer rounded px-2 py-1 border", 
@@ -322,17 +355,77 @@ const CodeBlock = memo(function CodeBlock({
             {isCollapsed ? `${lineCount} 行` : '收起'}
           </button>
 
-          {onDelete && (
-            <button 
+          {/* 更多菜单 */}
+          <div className="relative" ref={moreMenuRef}>
+            <button
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
               className={cn("p-1.5 rounded transition-colors",
                 theme === 'github' ? 'hover:bg-gray-200 text-gray-600' : 'hover:bg-white/10 text-gray-400 hover:text-white'
               )}
-              title="删除"
-              onClick={onDelete}
+              title="更多操作"
             >
-              <Minus className="w-4 h-4" />
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
             </button>
-          )}
+            
+            {/* 更多菜单下拉 */}
+            {showMoreMenu && (
+              <div className={cn(
+                "absolute right-0 top-full mt-1 w-40 rounded-lg shadow-xl z-50 py-1 border",
+                theme === 'github' ? 'bg-white border-gray-200' : 'bg-gray-800 border-gray-700'
+              )}>
+                <button
+                  onClick={() => {
+                    handleCopy()
+                    setShowMoreMenu(false)
+                  }}
+                  className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors",
+                    theme === 'github' 
+                      ? 'hover:bg-gray-100 text-gray-700' 
+                      : 'hover:bg-white/10 text-gray-300'
+                  )}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                  </svg>
+                  复制
+                </button>
+                <button
+                  onClick={() => {
+                    setIsCollapsed(!isCollapsed)
+                    setShowMoreMenu(false)
+                  }}
+                  className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors",
+                    theme === 'github' 
+                      ? 'hover:bg-gray-100 text-gray-700' 
+                      : 'hover:bg-white/10 text-gray-300'
+                  )}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={isCollapsed ? "M19 9l-7 7-7-7" : "M5 15l7-7 7 7"} />
+                  </svg>
+                  {isCollapsed ? '展开' : '折叠'}
+                </button>
+                {onDelete && (
+                  <button
+                    onClick={() => {
+                      onDelete()
+                      setShowMoreMenu(false)
+                    }}
+                    className={cn("w-full flex items-center gap-2 px-3 py-2 text-sm text-left transition-colors text-red-500",
+                      theme === 'github' ? 'hover:bg-red-50' : 'hover:bg-red-500/10'
+                    )}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    删除
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
       
@@ -981,16 +1074,40 @@ export function StableEditor({ content, onChange, title, onTitleChange }: { cont
   }, [])
 
   const convertBlock = useCallback((id: string, type: BlockType) => {
-    setBlocks(prev => prev.map(b => {
-      if (b.id !== id) return b
-      return { 
-        ...b, 
-        type, 
-        content: type === 'divider' ? '' : b.content,
-        meta: type === 'code' ? { language: 'plaintext', theme: 'darcula' } : 
-              type === 'todo' ? { checked: false } : undefined
+    setBlocks(prev => {
+      // 转换块
+      const newBlocks = prev.map(b => {
+        if (b.id !== id) return b
+        return { 
+          ...b, 
+          type, 
+          content: type === 'divider' ? '' : b.content,
+          meta: type === 'code' ? { language: 'plaintext', theme: 'darcula' } : 
+                type === 'todo' ? { checked: false } : undefined
+        }
+      })
+      
+      // 对于代码块、分割线等特殊块，自动在后面添加空段落块（如果没有的话）
+      if (type === 'code' || type === 'divider' || type === 'callout') {
+        const index = newBlocks.findIndex(b => b.id === id)
+        const isLastBlock = index === newBlocks.length - 1
+        const nextBlock = newBlocks[index + 1]
+        
+        // 如果是最后一个块，或者下一个不是空段落，则添加
+        if (isLastBlock || !(nextBlock?.type === 'paragraph' && !nextBlock?.content)) {
+          const emptyBlock: Block = { 
+            id: generateId(), 
+            type: 'paragraph', 
+            content: '' 
+          }
+          newBlocks.splice(index + 1, 0, emptyBlock)
+          // 聚焦到新创建的块
+          setTimeout(() => setActiveId(emptyBlock.id), 0)
+        }
       }
-    }))
+      
+      return newBlocks
+    })
   }, [])
 
   const showPlaceholder = blocks.length === 2 && 
