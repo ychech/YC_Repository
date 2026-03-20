@@ -101,19 +101,29 @@ export function SortableFolder({
     }
   }
 
-  // 点击外部关闭菜单
+  // 点击外部关闭菜单或保存重命名
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+      const target = event.target as Node
+      
+      // 关闭菜单
+      if (createMenuRef.current && !createMenuRef.current.contains(target)) {
         setShowCreateMenu(false)
       }
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+      if (moreMenuRef.current && !moreMenuRef.current.contains(target)) {
         setShowMoreMenu(false)
+      }
+      
+      // 重命名状态下，点击输入框外部就保存
+      if (isRenaming && renameInputRef.current) {
+        if (!renameInputRef.current.contains(target)) {
+          handleRename()
+        }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
+  }, [isRenaming, handleRename])
 
   const handleCreate = (type: DocumentType) => {
     onCreate?.(type)
@@ -183,10 +193,7 @@ export function SortableFolder({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={(e) => {
-              // 延迟保存，确保其他点击事件先处理
-              setTimeout(() => handleRename(), 100)
-            }}
+            onBlur={handleRename}
             onClick={(e) => e.stopPropagation()}
             autoFocus
             className="flex-1 min-w-0 max-w-[100px] bg-gray-800 text-gray-200 text-sm px-2 py-0.5 rounded border border-blue-500 outline-none"
