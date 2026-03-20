@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { Document, DocumentType, SpreadsheetData, WhiteboardData, NoteData } from '../types/document'
 import * as tauri from '../hooks/useTauri'
+import { useSettingsStore } from './settings'
 
 export type { Document, DocumentType }
 
@@ -31,9 +32,10 @@ interface DocumentState {
   isLoading: boolean
   error: string | null
   hasInitialized: boolean  // 防止重复加载
+  _saveTimer: ReturnType<typeof setTimeout> | null  // 防抖计时器
   
   // Actions
-  createDocument: (kbId: string, title: string, content?: string, parentId?: string) => Promise<Document | null>
+  createDocument: (kbId: string, title: string, content?: string, parentId?: string, type?: DocumentType) => Promise<Document | null>
   loadDocument: (id: string) => Promise<Document | null>
   loadDocumentContent: (id: string) => Promise<string>
   updateDocument: (id: string, updates: { title?: string; content?: string }) => Promise<void>
@@ -41,7 +43,8 @@ interface DocumentState {
   setCurrentDocument: (doc: Document | null) => void
   loadRecentDocuments: () => Promise<void>
   listDocuments: (kbId: string, parentId?: string | null, folderId?: string | null) => Promise<Document[]>
-  moveDocument: (docId: string, targetKbId?: string, targetParentId?: string | null, targetFolderId?: string | null) => Promise<void>
+  loadAllDocuments: (kbId: string) => Promise<Document[]>
+  moveDocument: (docId: string, targetKbId?: string, targetParentId?: string | null, targetFolderId?: string | null, position?: number) => Promise<void>
   
   // 类型特定的更新
   updateSpreadsheetData: (id: string, data: SpreadsheetData) => void
@@ -55,19 +58,33 @@ interface DocumentState {
   
   // 拖拽排序
   reorderDocuments: (docIds: string[]) => void
+  
+  // 直接设置文档列表（用于本地更新）
+  setDocuments: (docs: Document[]) => void
 }
 
 // 转换后端文档格式为前端格式
 function convertBackendDoc(backend: BackendDocument): Document {
-  const type: DocumentType = 
-    backend.contentType === 'database' ? 'spreadsheet' :
-    backend.contentType === 'canvas' ? 'whiteboard' : 'document'
+  const type = 
+    (backend.contentType === 'database' ? 'spreadsheet' :
+    backend.contentType === 'canvas' ? 'whiteboard' : 'document') as DocumentType
+  
+  // 为不同类型初始化默认 data
+  let data: any = undefined
+  if (type === 'whiteboard') {
+    data = { nodes: [], edges: [], viewport: { x: 0, y: 0, zoom: 1 } }
+  } else if (type === 'spreadsheet') {
+    data = { columns: [], rows: [], views: [] }
+  } else if (type === 'note') {
+    data = { content: '', images: [], tags: [] }
+  }
   
   return {
     id: backend.id,
     type,
     title: backend.title,
     content: undefined, // 需要单独加载
+    data,
     kbId: backend.kbId,
     // folderId 优先于 parentId，用于关联文件夹
     parentId: backend.folderId || backend.parentId,
@@ -91,18 +108,24 @@ export const useDocumentStore = create<DocumentState>()(
       isLoading: false,
       error: null,
       hasInitialized: false,
+      _saveTimer: null,
       
-      createDocument: async (kbId, title, content, parentId) => {
+      createDocument: async (kbId, title, content, parentId, type) => {
         set({ isLoading: true, error: null })
         try {
-          console.log('[DocumentStore] Creating document:', { kbId, title, parentId })
+          console.log('[DocumentStore] Creating document:', { kbId, title, parentId, type })
+          // 映射前端类型到后端 contentType
+          const contentType = 
+            type === 'spreadsheet' ? 'database' :
+            type === 'whiteboard' ? 'canvas' : 'markdown'
           // parentId 作为 folderId 传递给后端（用于关联文件夹）
           const backendDoc = await tauri.createDocument(
             kbId, 
             title, 
             content || '', 
             undefined,  // parentId 用于文档父子关系
-            parentId    // folderId 用于关联文件夹
+            parentId,   // folderId 用于关联文件夹
+            contentType // 文档类型
           ) as BackendDocument
           const doc = convertBackendDoc(backendDoc)
           
@@ -177,30 +200,44 @@ export const useDocumentStore = create<DocumentState>()(
       },
       
       updateDocument: async (id, updates) => {
-        set({ isLoading: true, error: null })
-        try {
-          console.log('[DocumentStore] Updating document:', { id, updates })
-          
-          // 本地先更新（乐观更新）
-          set((state) => ({
-            documents: state.documents.map((d) =>
-              d.id === id 
-                ? { ...d, ...updates, updatedAt: new Date() } 
-                : d
-            ),
-            currentDocument: state.currentDocument?.id === id 
-              ? { ...state.currentDocument, ...updates, updatedAt: new Date() } 
-              : state.currentDocument,
-          }))
-          
-          // 调用后端
-          await tauri.updateDocument(id, updates.title, updates.content)
-          
-          set({ isLoading: false })
-        } catch (error) {
-          console.error('[DocumentStore] Failed to update document:', error)
-          set({ error: String(error), isLoading: false })
+        // 本地立即更新（乐观更新）
+        set((state) => ({
+          documents: state.documents.map((d) =>
+            d.id === id 
+              ? { ...d, ...updates, updatedAt: new Date() } 
+              : d
+          ),
+          currentDocument: state.currentDocument?.id === id 
+            ? { ...state.currentDocument, ...updates, updatedAt: new Date() } 
+            : state.currentDocument,
+        }))
+        
+        // 获取自动保存间隔（秒）
+        const autoSaveInterval = useSettingsStore.getState().settings.general.autoSaveInterval
+        
+        // 如果禁用自动保存，不执行后端保存
+        if (autoSaveInterval === 0) {
+          return
         }
+        
+        // 防抖保存到后端
+        const state = get()
+        if (state._saveTimer) {
+          clearTimeout(state._saveTimer)
+        }
+        
+        const delayMs = autoSaveInterval * 1000 // 转换为毫秒
+        const timer = setTimeout(async () => {
+          try {
+            await tauri.updateDocument(id, updates.title, updates.content)
+            console.log('[DocumentStore] Auto saved:', id, `(${autoSaveInterval}s)`)
+          } catch (error) {
+            console.error('[DocumentStore] Failed to save document:', error)
+            set({ error: String(error) })
+          }
+        }, delayMs)
+        
+        set({ _saveTimer: timer })
       },
       
       deleteDocument: async (id) => {
@@ -215,6 +252,7 @@ export const useDocumentStore = create<DocumentState>()(
         } catch (error) {
           console.error('[DocumentStore] Failed to delete document:', error)
           set({ error: String(error), isLoading: false })
+          throw error
         }
       },
       
@@ -264,12 +302,31 @@ export const useDocumentStore = create<DocumentState>()(
         }
       },
       
-      moveDocument: async (docId, targetKbId, targetParentId, targetFolderId) => {
+      loadAllDocuments: async (kbId) => {
+        if (!kbId) return []
+        set({ isLoading: true, error: null })
         try {
-          console.log('[DocumentStore] Moving document:', { docId, targetKbId, targetParentId, targetFolderId })
+          const backendDocs = await tauri.listAllDocuments(kbId) as BackendDocument[]
+          const docs = backendDocs.map(convertBackendDoc)
+          set((state) => ({
+            documents: [...state.documents.filter(d => d.kbId !== kbId), ...docs],
+            isLoading: false,
+          }))
+          return docs
+        } catch (error) {
+          console.error('[DocumentStore] Failed to load all documents:', error)
+          set({ error: String(error), isLoading: false })
+          return []
+        }
+      },
+      
+      moveDocument: async (docId, targetKbId, targetParentId, targetFolderId, position) => {
+        try {
+          console.log('[DocumentStore] Moving document:', { docId, targetKbId, targetParentId, targetFolderId, position })
           
-          // 调用后端 API
-          await tauri.moveDocument(docId, targetParentId || undefined, targetFolderId || undefined)
+          // 调用后端 API - 使用 null 来清除 folder_id，传递 position
+          const folderIdParam = targetFolderId === null ? null : (targetFolderId || undefined)
+          await tauri.moveDocument(docId, targetParentId || undefined, folderIdParam, position)
           
           // 本地更新
           set((state) => ({
@@ -278,7 +335,8 @@ export const useDocumentStore = create<DocumentState>()(
                 ? { 
                     ...doc, 
                     kbId: targetKbId || doc.kbId, 
-                    parentId: targetFolderId || targetParentId || undefined
+                    parentId: targetFolderId === null ? undefined : (targetFolderId || targetParentId || undefined),
+                    position: position !== undefined ? position : doc.position
                   }
                 : doc
             )
@@ -337,6 +395,10 @@ export const useDocumentStore = create<DocumentState>()(
           .filter(Boolean) as Document[]
         const otherDocs = docs.filter(d => !docIds.includes(d.id))
         set({ documents: [...orderedDocs, ...otherDocs] })
+      },
+      
+      setDocuments: (docs) => {
+        set({ documents: docs })
       },
     }),
     {

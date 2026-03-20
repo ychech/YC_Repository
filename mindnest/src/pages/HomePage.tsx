@@ -55,9 +55,9 @@ const typeConfig: Record<DocumentType, { icon: any; name: string; color: string;
   note: {
     icon: StickyNote,
     name: '小记',
-    color: 'text-amber-600',
-    bgColor: 'bg-amber-50',
-    gradient: 'from-amber-500 to-orange-500'
+    color: 'text-slate-600',
+    bgColor: 'bg-slate-50',
+    gradient: 'from-slate-500 to-gray-500'
   }
 }
 
@@ -118,7 +118,7 @@ export function HomePage() {
                         type === 'spreadsheet' ? '无标题数据表' :
                         type === 'whiteboard' ? '无标题画板' : '小记'
     
-    const doc = await createDocument(DEFAULT_KB_ID, defaultTitle)
+    const doc = await createDocument(DEFAULT_KB_ID, defaultTitle, undefined, undefined, type)
     if (!doc) return
     
     // 创建 MindNest 文档对象
@@ -296,7 +296,7 @@ export function HomePage() {
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="mb-10">
           <div className="flex items-center justify-between mb-5">
             <h3 className="text-lg font-semibold flex items-center gap-2">
-              <Zap className="w-5 h-5 text-amber-500" />
+              <Zap className="w-5 h-5 text-blue-500" />
               快速开始
             </h3>
             <button onClick={() => setShowNewDialog(true)} className="text-sm text-primary hover:underline flex items-center gap-1">
@@ -355,17 +355,18 @@ export function HomePage() {
               {recentDocuments.slice(0, 6).map((doc, index) => {
                 const config = typeConfig[doc.type] || typeConfig.document
                 return (
-                  <motion.button
+                  <motion.div
                     key={doc.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 + index * 0.05 }}
-                    className="w-full flex items-center gap-4 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors text-left group"
+                    className="w-full flex items-center gap-4 p-3 bg-card border border-border rounded-lg hover:border-primary/30 transition-colors text-left group cursor-pointer"
+                    onClick={() => navigate(`/doc/${doc.id}`)}
                   >
                     <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", config.bgColor)}>
                       <config.icon className={cn("w-5 h-5", config.color)} />
                     </div>
-                    <div className="flex-1 min-w-0" onClick={() => navigate(`/doc/${doc.id}`)}>
+                    <div className="flex-1 min-w-0">
                       <div className="font-medium truncate">{doc.title}</div>
                       <div className="text-sm text-muted-foreground flex items-center gap-2">
                         <span className={cn("px-1.5 py-0.5 rounded text-xs", config.bgColor, config.color)}>{config.name}</span>
@@ -378,9 +379,9 @@ export function HomePage() {
                       <button onClick={(e) => { e.stopPropagation(); handleExport(doc); }} className="p-2 hover:bg-accent rounded-lg text-muted-foreground">
                         <Download className="w-4 h-4" />
                       </button>
-                      {doc.isFavorite && <Star className="w-4 h-4 text-amber-500 fill-amber-500" />}
+                      {doc.isFavorite && <Star className="w-4 h-4 text-gray-400 fill-gray-400" />}
                     </div>
-                  </motion.button>
+                  </motion.div>
                 )
               })}
             </div>

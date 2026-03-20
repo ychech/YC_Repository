@@ -1,4 +1,4 @@
-// 语雀四种内容形态
+// 语雀四种内容形态（直接定义以避免类型兼容性问题）
 export type DocumentType = 'document' | 'spreadsheet' | 'whiteboard' | 'note'
 
 export interface Document {
@@ -9,6 +9,7 @@ export interface Document {
   data?: any             // 数据表的行数据、画板的图形数据
   kbId: string           // 所属知识库 ID
   parentId?: string      // 所属文件夹/分组 ID
+  position?: number      // 排序位置
   isPinned?: boolean
   isFavorite?: boolean
   createdAt: Date
@@ -99,36 +100,29 @@ export interface ViewSort {
   direction: 'asc' | 'desc'
 }
 
-// 画板
+// 画板 - 与 WhiteboardEditor 组件兼容的格式 (nodes/edges)
 export interface WhiteboardData {
   nodes: WhiteboardNode[]
   edges: WhiteboardEdge[]
   viewport: { x: number; y: number; zoom: number }
 }
 
-export type WhiteboardNodeType = 
-  | 'text' | 'rectangle' | 'ellipse' | 'diamond'
-  | 'sticky' | 'image' | 'code'
-  | 'mindmap-root' | 'mindmap-node'
-
 export interface WhiteboardNode {
   id: string
-  type: WhiteboardNodeType
+  type: 'text' | 'rectangle' | 'ellipse' | 'diamond' | 'sticky' | 'image' | 'code' | 'mindmap-root' | 'mindmap-node'
   x: number
   y: number
   width: number
   height: number
   content?: string
-  style?: NodeStyle
+  style?: {
+    backgroundColor?: string
+    borderColor?: string
+    borderWidth?: number
+    fontSize?: number
+    color?: string
+  }
   parentId?: string
-}
-
-export interface NodeStyle {
-  backgroundColor?: string
-  borderColor?: string
-  borderWidth?: number
-  fontSize?: number
-  color?: string
 }
 
 export interface WhiteboardEdge {
@@ -136,6 +130,28 @@ export interface WhiteboardEdge {
   source: string
   target: string
   type?: 'straight' | 'curved' | 'orthogonal'
+  label?: string
+}
+
+// 知识图谱数据（独立类型）
+export interface GraphData {
+  nodes: GraphNode[]
+  edges: GraphEdge[]
+  viewport: { x: number; y: number; zoom: number }
+}
+
+export interface GraphNode {
+  id: string
+  label: string
+  x: number
+  y: number
+  color?: string
+}
+
+export interface GraphEdge {
+  id: string
+  source: string
+  target: string
   label?: string
 }
 

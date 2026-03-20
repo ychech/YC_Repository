@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, useCallback, memo } from 'react'
 import { cn } from '../../utils/cn'
+import { useSettingsStore } from '../../stores/settings'
 import { 
-  Plus, Trash2, GripVertical,
+  Plus, Trash2, GripVertical, Save,
   Heading1, Heading2, Heading3, List, ListOrdered, 
   CheckSquare, Quote, Code, Minus, Type, Image, Table2, 
   FileText, Map, Music, Video, Link2, Calculator, Sparkles, 
@@ -645,6 +646,23 @@ const CommandMenu = memo(function CommandMenu({
 })
 
 // ===== 单个块组件 =====
+// 自定义比较函数：忽略 block.content 变化，因为我们使用本地状态管理
+function blockItemAreEqual(prevProps: any, nextProps: any) {
+  return (
+    prevProps.block.id === nextProps.block.id &&
+    prevProps.block.type === nextProps.block.type &&
+    prevProps.index === nextProps.index &&
+    prevProps.isFirst === nextProps.isFirst &&
+    prevProps.isActive === nextProps.isActive &&
+    prevProps.showPlaceholder === nextProps.showPlaceholder &&
+    prevProps.onUpdate === nextProps.onUpdate &&
+    prevProps.onFocus === nextProps.onFocus &&
+    prevProps.onAddBelow === nextProps.onAddBelow &&
+    prevProps.onDelete === nextProps.onDelete &&
+    prevProps.onConvert === nextProps.onConvert
+  )
+}
+
 const BlockItem = memo(function BlockItem({
   block,
   index,
@@ -673,9 +691,11 @@ const BlockItem = memo(function BlockItem({
   const [commandQuery, setCommandQuery] = useState('')
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  // 只在切换文档/块时同步内容，编辑时不重置光标
   useEffect(() => {
     setLocalContent(block.content)
-  }, [block.content, block.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [block.id])
 
   useEffect(() => {
     if (textareaRef.current && block.type !== 'code') {
@@ -806,9 +826,9 @@ const BlockItem = memo(function BlockItem({
           <GripVertical className="w-4 h-4 text-muted-foreground/40 cursor-grab" />
         </div>
         <div className="flex-1">
-          <div className="my-2 p-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg">
+          <div className="my-2 p-4 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg">
             <div className="flex items-start gap-3">
-              <div className="mt-0.5 text-amber-500">
+              <div className="mt-0.5 text-gray-500">
                 <LayoutGrid className="w-5 h-5" />
               </div>
               <textarea
@@ -840,7 +860,9 @@ const BlockItem = memo(function BlockItem({
     ),
     placeholder: getPlaceholder(),
     rows: 1,
-    spellCheck: false
+    spellCheck: false,
+    'data-block-id': block.id,
+    'data-block-type': block.type
   }
 
   const renderContent = () => {
@@ -940,17 +962,100 @@ const BlockItem = memo(function BlockItem({
       </div>
     </div>
   )
-})
+}, blockItemAreEqual)
 
 // ===== 主编辑器组件 =====
-export function StableEditor({ content, onChange, title, onTitleChange }: { content?: string; onChange?: (content: string) => void; title?: string; onTitleChange?: (title: string) => void }) {
+export function StableEditor({ 
+  content, 
+  onChange, 
+  onSave,
+  title, 
+  onTitleChange 
+}: { 
+  content?: string; 
+  onChange?: (content: string) => void; 
+  onSave?: (data: { content: string; title: string }) => void;
+  title?: string; 
+  onTitleChange?: (title: string) => void 
+}) {
+  const { settings } = useSettingsStore()
+  const autoSaveInterval = settings.general.autoSaveInterval // 秒
+  
   const [blocks, setBlocks] = useState<Block[]>([
     { id: generateId(), type: 'title', content: title || '' },
     { id: generateId(), type: 'paragraph', content: '' }
   ])
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+  
+  // 获取当前编辑器内容的辅助函数（直接从 DOM 读取最新值）
+  const getCurrentContent = useCallback(() => {
+    // 读取标题
+    const titleEl = document.querySelector('[data-block-type="title"]') as HTMLTextAreaElement
+    const currentTitle = titleEl?.value || title || ''
+    
+    // 读取所有内容块（排除标题）
+    const contentEls = document.querySelectorAll('[data-block-type]:not([data-block-type="title"])')
+    const lines: string[] = []
+    
+    contentEls.forEach((el) => {
+      const textarea = el as HTMLTextAreaElement
+      const blockType = el.getAttribute('data-block-type') as BlockType
+      const text = textarea.value || ''
+      
+      switch (blockType) {
+        case 'heading1': lines.push(`# ${text}`); break
+        case 'heading2': lines.push(`## ${text}`); break
+        case 'heading3': lines.push(`### ${text}`); break
+        case 'bullet': lines.push(`- ${text}`); break
+        case 'number': lines.push(`1. ${text}`); break
+        case 'todo': {
+          const checked = (el.querySelector('input[type="checkbox"]') as HTMLInputElement)?.checked
+          lines.push(`- [${checked ? 'x' : ' '}] ${text}`)
+          break
+        }
+        case 'quote': lines.push(`> ${text}`); break
+        case 'code': lines.push(`\`\`\`\n${text}\n\`\`\``); break
+        case 'divider': lines.push('---'); break
+        default: lines.push(text)
+      }
+    })
+    
+    return {
+      title: currentTitle,
+      content: lines.join('\n\n')
+    }
+  }, [title])
+  
+  // 执行保存
+  const handleSaveClick = useCallback(() => {
+    if (!onSave) return
+    const data = getCurrentContent()
+    setIsSaving(true)
+    onSave(data)
+    setTimeout(() => setIsSaving(false), 500)
+  }, [onSave, getCurrentContent])
+  
+  // 快捷键支持：Ctrl+S / Cmd+S / Ctrl+Alt+S
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+S / Cmd+S
+      const isModS = (e.metaKey || e.ctrlKey) && e.key === 's' && !e.altKey
+      // Ctrl+Alt+S
+      const isCtrlAltS = e.ctrlKey && e.altKey && e.key === 's'
+      
+      if ((isModS || isCtrlAltS) && onSave) {
+        e.preventDefault()
+        e.stopPropagation()
+        handleSaveClick()
+      }
+    }
+    
+    window.addEventListener('keydown', handleKeyDown, true)
+    return () => window.removeEventListener('keydown', handleKeyDown, true)
+  }, [handleSaveClick, onSave])
 
-  // 初始化
+  // 初始化 - 监听 content 变化重置 blocks
   useEffect(() => {
     if (content && content.trim()) {
       const lines = content.split('\n')
@@ -991,18 +1096,24 @@ export function StableEditor({ content, onChange, title, onTitleChange }: { cont
       if (parsed.length > 1) {
         setBlocks(parsed)
       }
+    } else {
+      // 空内容时重置为默认
+      setBlocks([
+        { id: generateId(), type: 'title', content: title || '' },
+        { id: generateId(), type: 'paragraph', content: '' }
+      ])
     }
-  }, [])
+  }, [content, title])
 
-  // 同步标题变化
+  // 序列化内容（根据设置自动保存）
   useEffect(() => {
-    if (title !== undefined && blocks[0]?.type === 'title' && blocks[0].content !== title) {
-      setBlocks(prev => [{ ...prev[0], content: title }, ...prev.slice(1)])
+    // 如果禁用自动保存，直接返回
+    if (autoSaveInterval === 0) {
+      return
     }
-  }, [title])
-
-  // 序列化内容
-  useEffect(() => {
+    
+    const delayMs = autoSaveInterval * 1000 // 转换为毫秒
+    
     const timer = setTimeout(() => {
       const titleBlock = blocks.find(b => b.type === 'title')
       const contentBlocks = blocks.filter(b => b.type !== 'title')
@@ -1027,10 +1138,10 @@ export function StableEditor({ content, onChange, title, onTitleChange }: { cont
       }).join('\n\n')
       
       onChange?.(markdown)
-    }, 300)
+    }, delayMs)
 
     return () => clearTimeout(timer)
-  }, [blocks, onChange, onTitleChange, title])
+  }, [blocks, onChange, onTitleChange, title, autoSaveInterval])
 
   const updateBlock = useCallback((id: string, content: string, meta?: any) => {
     setBlocks(prev => prev.map(b => {
@@ -1041,7 +1152,25 @@ export function StableEditor({ content, onChange, title, onTitleChange }: { cont
 
   const deleteBlock = useCallback((id: string) => {
     setBlocks(prev => {
-      if (prev.length <= 2) return prev
+      const index = prev.findIndex(b => b.id === id)
+      if (index <= 0) return prev // 不能删除标题或找不到
+      if (prev.length <= 2) return prev // 至少保留2个块
+      
+      // 删除前记录前一个块
+      const prevBlock = prev[index - 1]
+      
+      // 延迟设置焦点到前一个块的末尾
+      setTimeout(() => {
+        setActiveId(prevBlock.id)
+        // 聚焦并将光标移到末尾
+        const el = document.querySelector(`[data-block-id="${prevBlock.id}"]`) as HTMLTextAreaElement
+        if (el) {
+          el.focus()
+          const len = el.value.length
+          el.setSelectionRange(len, len)
+        }
+      }, 0)
+      
       return prev.filter(b => b.id !== id)
     })
   }, [])
@@ -1116,6 +1245,25 @@ export function StableEditor({ content, onChange, title, onTitleChange }: { cont
 
   return (
     <div className="h-full overflow-y-auto py-12 px-4">
+      {/* 顶部工具栏 */}
+      {onSave && (
+        <div className="max-w-3xl mx-auto mb-4 flex items-center justify-end gap-2">
+          <button
+            onClick={handleSaveClick}
+            disabled={isSaving}
+            className={cn(
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all",
+              "bg-primary text-primary-foreground hover:bg-primary/90",
+              "disabled:opacity-50 disabled:cursor-not-allowed",
+              "shadow-sm hover:shadow"
+            )}
+            title="保存 (Ctrl+S / Ctrl+Alt+S)"
+          >
+            <Save className={cn("w-4 h-4", isSaving && "animate-pulse")} />
+            {isSaving ? '保存中...' : '保存'}
+          </button>
+        </div>
+      )}
       <div className="max-w-3xl mx-auto">
         {blocks.map((block, index) => (
           <BlockItem

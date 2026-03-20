@@ -221,31 +221,11 @@ const MIGRATIONS: &[&str] = &[
     );
     "#,
     
-    // Migration 003: Add FTS5 virtual table for search
+    // Migration 003: Add FTS5 virtual table for search (DISABLED - causing SQL logic errors)
+    // FTS temporarily disabled to fix document update issues
     r#"
-    CREATE VIRTUAL TABLE IF NOT EXISTS document_fts USING fts5(
-        title,
-        content,
-        tokenize = 'porter unicode61'
-    );
-
-    -- Triggers to keep FTS index in sync
-    CREATE TRIGGER IF NOT EXISTS documents_ai AFTER INSERT ON documents BEGIN
-        INSERT INTO document_fts(rowid, title, content) 
-        VALUES (new.rowid, new.title, '');
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS documents_au AFTER UPDATE ON documents BEGIN
-        INSERT INTO document_fts(document_fts, rowid, title, content) 
-        VALUES ('delete', old.rowid, old.title, '');
-        INSERT INTO document_fts(rowid, title, content) 
-        VALUES (new.rowid, new.title, '');
-    END;
-
-    CREATE TRIGGER IF NOT EXISTS documents_ad AFTER DELETE ON documents BEGIN
-        INSERT INTO document_fts(document_fts, rowid, title, content) 
-        VALUES ('delete', old.rowid, old.title, '');
-    END;
+    -- FTS5 disabled until triggers can be fixed
+    -- CREATE VIRTUAL TABLE IF NOT EXISTS document_fts USING fts5(title, content, tokenize = 'porter unicode61');
     "#,
     
     // Migration 004: Add folders table
@@ -269,6 +249,48 @@ const MIGRATIONS: &[&str] = &[
     -- 添加文档的 folder_id 字段（用于关联文件夹）
     ALTER TABLE documents ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL;
     CREATE INDEX IF NOT EXISTS idx_doc_folder ON documents(folder_id);
+    "#,
+    
+    // Migration 005: Remove FTS triggers that cause SQL logic errors
+    r#"
+    -- 删除有问题的 FTS 触发器
+    DROP TRIGGER IF EXISTS documents_ai;
+    DROP TRIGGER IF EXISTS documents_au;
+    DROP TRIGGER IF EXISTS documents_ad;
+    
+    -- 删除 FTS 表（如果存在）
+    DROP TABLE IF EXISTS document_fts;
+    "#,
+    
+    // Migration 006: Simplify user_settings table structure
+    // AI4: 修复设置存储格式混乱问题
+    r#"
+    -- 创建临时表存储现有数据
+    CREATE TABLE IF NOT EXISTS _temp_settings AS
+    SELECT user_id, editor as settings, updated_at 
+    FROM user_settings 
+    WHERE user_id = 'local_user';
+    
+    -- 删除旧表
+    DROP TABLE IF EXISTS user_settings;
+    
+    -- 创建新表（简化结构）
+    CREATE TABLE user_settings (
+        user_id TEXT PRIMARY KEY,
+        settings TEXT NOT NULL DEFAULT '{}',
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    
+    -- 迁移数据
+    INSERT INTO user_settings (user_id, settings, updated_at)
+    SELECT user_id, 
+           COALESCE(settings, '{}'),
+           COALESCE(updated_at, CURRENT_TIMESTAMP)
+    FROM _temp_settings
+    WHERE user_id IS NOT NULL;
+    
+    -- 删除临时表
+    DROP TABLE IF EXISTS _temp_settings;
     "#,
 ];
 

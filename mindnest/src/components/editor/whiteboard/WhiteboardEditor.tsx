@@ -1,5 +1,39 @@
 import { useState, useRef, useCallback } from 'react'
-import type { WhiteboardData, WhiteboardNode, WhiteboardEdge } from '../../../types/document'
+// 使用本地类型定义，与 types/document 解耦
+type WhiteboardNodeType = 'text' | 'rectangle' | 'ellipse' | 'diamond' | 'sticky' | 'image' | 'code' | 'mindmap-root' | 'mindmap-node'
+
+interface WhiteboardNode {
+  id: string
+  type: WhiteboardNodeType
+  x: number
+  y: number
+  width: number
+  height: number
+  content?: string
+  style?: {
+    backgroundColor?: string
+    borderColor?: string
+    borderWidth?: number
+    fontSize?: number
+    color?: string
+  }
+  parentId?: string
+}
+
+interface WhiteboardEdge {
+  id: string
+  source: string
+  target: string
+  type?: 'straight' | 'curved' | 'orthogonal'
+  label?: string
+}
+
+// 本地 WhiteboardData 定义（知识图谱格式，与画板区分）
+interface WhiteboardData {
+  nodes: WhiteboardNode[]
+  edges: WhiteboardEdge[]
+  viewport: { x: number; y: number; zoom: number }
+}
 import { 
   MousePointer2, 
   Square, 

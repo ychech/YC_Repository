@@ -3,7 +3,7 @@ use crate::AppState;
 use crate::error::Result;
 use crate::models::*;
 use crate::fs;
-use std::path::PathBuf;
+
 
 #[tauri::command]
 #[specta::specta]
@@ -14,38 +14,51 @@ pub async fn create_document(
     content: Option<String>,
     parent_id: Option<String>,
     folder_id: Option<String>,
+    content_type: Option<String>,  // 新增: 文档类型
 ) -> Result<Document> {
     let id = nanoid::nanoid!();
     let now = chrono::Utc::now();
     
-    // 生成文件路径
-    let kb_path = state.db_pool.get_kb_storage_path(&kb_id)?;
-    let file_path = format!("{}.md", id);
-    let full_path = kb_path.join(&file_path);
-    
-    // 如果有内容，写入文件
-    let (checksum, file_size, word_count, reading_time) = if let Some(ref content) = content {
-        fs::write_document(&full_path, content)?;
-        let checksum = fs::calculate_checksum(content);
-        let file_size = content.len() as i64;
-        let word_count = fs::count_words(content);
-        let reading_time = fs::estimate_reading_time(word_count);
-        (Some(checksum), file_size, word_count, reading_time)
-    } else {
-        (None, 0, 0, 0)
+    // 解析 content_type
+    let content_type = match content_type.as_deref() {
+        Some("canvas") => ContentType::Canvas,
+        Some("database") => ContentType::Database,
+        _ => ContentType::Markdown,
     };
+    
+    // 获取知识库的完整存储路径
+    let kb_full_path = state.db_pool.get_kb_full_storage_path(&kb_id)?;
+    
+    // 文件路径（根据类型选择扩展名）
+    let ext = match content_type {
+        ContentType::Canvas => "canvas",
+        ContentType::Database => "db",
+        ContentType::Markdown => "md",
+    };
+    let file_path = format!("{}.{}", id, ext);
+    let full_path = kb_full_path.join(&file_path);
+    
+    // 确保目录存在并写入文件
+    let content_str = content.unwrap_or_default();
+    fs::write_document(&full_path, &content_str)?;
+    
+    // 计算元数据
+    let checksum = fs::calculate_checksum(&content_str);
+    let file_size = content_str.len() as i64;
+    let word_count = fs::count_words(&content_str);
+    let reading_time = fs::estimate_reading_time(word_count);
     
     let doc = Document {
         id: id.clone(),
         kb_id: kb_id.clone(),
         parent_id,
-        folder_id: folder_id.clone(),  // 设置 folder_id
+        folder_id: folder_id.clone(),
         title: title.clone(),
         slug: Some(fs::generate_slug(&title)),
-        content_type: ContentType::Markdown,
-        file_path,
+        content_type,
+        file_path: file_path.clone(),
         file_size,
-        checksum,
+        checksum: Some(checksum),
         version: 1,
         frontmatter: serde_json::json!({
             "title": title,
@@ -60,6 +73,7 @@ pub async fn create_document(
         links: vec![],
         created_at: now,
         updated_at: now,
+        position: Some(0.0),
     };
     
     state.db_pool.create_document_with_folder(&doc, folder_id.as_deref())?;
@@ -84,8 +98,8 @@ pub async fn get_document_content(
     id: String,
 ) -> Result<String> {
     let doc = state.db_pool.get_document(&id)?;
-    let kb_path = state.db_pool.get_kb_storage_path(&doc.kb_id)?;
-    let full_path = kb_path.join(&doc.file_path);
+    let kb_full_path = state.db_pool.get_kb_full_storage_path(&doc.kb_id)?;
+    let full_path = kb_full_path.join(&doc.file_path);
     
     if !full_path.exists() {
         return Ok(String::new());
@@ -113,8 +127,8 @@ pub async fn update_document(
     
     // 更新内容
     if let Some(new_content) = content {
-        let kb_path = state.db_pool.get_kb_storage_path(&doc.kb_id)?;
-        let full_path = kb_path.join(&doc.file_path);
+        let kb_full_path = state.db_pool.get_kb_full_storage_path(&doc.kb_id)?;
+        let full_path = kb_full_path.join(&doc.file_path);
         
         // 写入文件
         fs::write_document(&full_path, &new_content)?;
@@ -152,21 +166,26 @@ pub async fn move_document(
     id: String,
     parent_id: Option<String>,
     folder_id: Option<String>,
+    position: Option<f64>,
 ) -> Result<Document> {
     let mut doc = state.db_pool.get_document(&id)?;
     let now = chrono::Utc::now();
     
-    // 更新父ID（文档父子关系）和 folder_id（文件夹关联）
+    // 更新父ID（文档父子关系）
     if parent_id.is_some() {
         doc.parent_id = parent_id;
     }
-    if folder_id.is_some() {
-        doc.folder_id = folder_id;
-    }
+    // 更新 folder_id（文件夹关联），允许设为 None（移出分组）
+    doc.folder_id = folder_id.clone();
     doc.updated_at = now;
     
-    // 保存到数据库
-    state.db_pool.update_document(&doc)?;
+    // 更新 position（排序位置）
+    if position.is_some() {
+        doc.position = position;
+    }
+    
+    // 保存到数据库 - 使用专门的移动方法处理 position
+    state.db_pool.move_document_to_folder(&id, folder_id.as_deref(), position)?;
     
     Ok(doc)
 }
@@ -189,10 +208,19 @@ pub async fn list_documents(
 
 #[tauri::command]
 #[specta::specta]
-pub async fn search_documents(
+pub async fn list_all_documents(
     state: State<'_, AppState>,
-    query: String,
-    kb_id: Option<String>,
+    kb_id: String,
+) -> Result<Vec<DocumentSummary>> {
+    state.db_pool.list_all_documents(&kb_id)
+}
+
+#[tauri::command]
+#[specta::specta]
+pub async fn search_documents(
+    _state: State<'_, AppState>,
+    _query: String,
+    _kb_id: Option<String>,
 ) -> Result<Vec<DocumentSummary>> {
     // TODO: 集成搜索引擎
     // 目前简单返回空列表

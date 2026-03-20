@@ -4,7 +4,7 @@
 use crate::error::{Result, AppError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use tracing::{info, error};
+use tracing::error;
 
 /// AI 提供商
 #[derive(Debug, Clone, Serialize, Deserialize)]

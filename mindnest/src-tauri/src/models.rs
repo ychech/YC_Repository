@@ -71,6 +71,8 @@ pub struct Document {
     pub links: Vec<Link>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<f64>,  // 排序位置
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -86,6 +88,8 @@ pub struct DocumentSummary {
     pub is_pinned: bool,
     pub is_favorite: bool,
     pub updated_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub position: Option<f64>,  // 排序位置
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useSettingsStore, themeOptions, languageOptions, aiProviderOptions, fontSizeOptions, autoSaveOptions, formatShortcut } from '../stores/settings'
+import { getAppInfo, openDataDirectory } from '../hooks/useTauri'
 import { cn } from '../utils/cn'
 import {
   Settings, Palette, Type, Bot, Keyboard, Shield, ChevronRight, Download, Upload, RotateCcw,
@@ -144,14 +145,34 @@ function GeneralPanel() {
           <div className="p-4 bg-muted/50 rounded-xl">
             <div className="font-medium mb-2">自动保存</div>
             <select
-              value={general.autoSaveInterval}
-              onChange={(e) => updateGeneral({ autoSaveInterval: Number(e.target.value) })}
+              value={autoSaveOptions.some(o => o.value === general.autoSaveInterval) ? general.autoSaveInterval : -1}
+              onChange={(e) => {
+                const value = Number(e.target.value)
+                if (value >= 0) {
+                  updateGeneral({ autoSaveInterval: value })
+                }
+              }}
               className="w-full px-3 py-2 rounded-lg border bg-background"
             >
               {autoSaveOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
+            {/* 自定义输入 */}
+            {!autoSaveOptions.some(o => o.value === general.autoSaveInterval) && (
+              <div className="mt-3 flex items-center gap-2">
+                <input
+                  type="number"
+                  min="1"
+                  max="3600"
+                  value={general.autoSaveInterval}
+                  onChange={(e) => updateGeneral({ autoSaveInterval: Math.max(1, Math.min(3600, Number(e.target.value))) })}
+                  className="w-24 px-3 py-2 rounded-lg border bg-background text-center"
+                  placeholder="秒"
+                />
+                <span className="text-sm text-muted-foreground">秒</span>
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -549,9 +570,8 @@ function PrivacyPanel() {
     // 获取数据存储位置
     const getDataDir = async () => {
       try {
-        const { invoke } = await import('@tauri-apps/api/core')
-        const info = await invoke('get_app_info') as { data_dir: string }
-        setDataDir(info.data_dir)
+        const info = await getAppInfo() as { version: string; name: string; data_dir?: string }
+        setDataDir(info.data_dir || '')
       } catch (e) {
         // 降级处理：显示常见路径
         const isMac = navigator.platform.toLowerCase().includes('mac')
@@ -657,8 +677,7 @@ function PrivacyPanel() {
             <button
               onClick={async () => {
                 try {
-                  const { invoke } = await import('@tauri-apps/api/core')
-                  await invoke('open_data_directory')
+                  await openDataDirectory()
                 } catch (e) {
                   // 降级处理：复制到剪贴板
                   navigator.clipboard.writeText(dataDir)

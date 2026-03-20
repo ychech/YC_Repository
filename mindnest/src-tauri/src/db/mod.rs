@@ -33,6 +33,9 @@ impl Database {
         // 运行迁移
         db.run_migrations()?;
         
+        // 修复可能的 schema 问题（确保所有字段都存在）
+        db.fix_schema()?;
+        
         // 初始化默认数据
         db.seed_default_data()?;
         
@@ -100,6 +103,59 @@ impl Database {
     fn run_migrations(&self) -> Result<()> {
         let conn = self.conn.lock().unwrap();
         migrations::run_all(&conn)?;
+        Ok(())
+    }
+    
+    /// 修复 schema 问题，确保所有必需的字段都存在
+    fn fix_schema(&self) -> Result<()> {
+        let conn = self.conn.lock().unwrap();
+        
+        // 检查 documents 表是否有 folder_id 字段
+        let folder_id_exists: bool = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('documents') WHERE name = 'folder_id'",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0) > 0;
+        
+        if !folder_id_exists {
+            // 添加 folder_id 字段
+            conn.execute(
+                "ALTER TABLE documents ADD COLUMN folder_id TEXT REFERENCES folders(id) ON DELETE SET NULL",
+                [],
+            )?;
+            // 创建索引
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_doc_folder ON documents(folder_id)",
+                [],
+            )?;
+        }
+        
+        // 检查 documents 表是否有 position 字段
+        let position_exists: bool = conn.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('documents') WHERE name = 'position'",
+            [],
+            |row| row.get(0),
+        ).unwrap_or(0) > 0;
+        
+        if !position_exists {
+            // 添加 position 字段，用于排序
+            conn.execute(
+                "ALTER TABLE documents ADD COLUMN position REAL DEFAULT 0",
+                [],
+            )?;
+            // 创建索引
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_doc_position ON documents(position)",
+                [],
+            )?;
+        }
+        
+        // 删除有问题的 FTS 触发器（每次启动都检查）
+        conn.execute("DROP TRIGGER IF EXISTS documents_ai", [])?;
+        conn.execute("DROP TRIGGER IF EXISTS documents_au", [])?;
+        conn.execute("DROP TRIGGER IF EXISTS documents_ad", [])?;
+        conn.execute("DROP TABLE IF EXISTS document_fts", [])?;
+        
         Ok(())
     }
     
@@ -235,6 +291,7 @@ impl Database {
             is_pinned: row.get(7)?,
             is_favorite: row.get(8)?,
             updated_at: row.get(9)?,
+            position: row.get(10).ok(), // position 字段可能不存在于所有查询中
         })
     }
 
@@ -247,7 +304,7 @@ impl Database {
             let mut stmt = conn.prepare(
                 "SELECT id, kb_id, parent_id, folder_id, title, content_type, word_count, is_pinned, is_favorite, updated_at
                  FROM documents WHERE kb_id = ?1 AND parent_id = ?2 AND status = 'active'
-                 ORDER BY is_pinned DESC, updated_at DESC"
+                 ORDER BY is_pinned DESC, position ASC, created_at ASC"
             )?;
             let mut rows = stmt.query([kb_id, pid])?;
             while let Some(row) = rows.next()? {
@@ -257,13 +314,31 @@ impl Database {
             let mut stmt = conn.prepare(
                 "SELECT id, kb_id, parent_id, folder_id, title, content_type, word_count, is_pinned, is_favorite, updated_at
                  FROM documents WHERE kb_id = ?1 AND parent_id IS NULL AND status = 'active'
-                 ORDER BY is_pinned DESC, updated_at DESC"
+                 ORDER BY is_pinned DESC, position ASC, created_at ASC"
             )?;
             let mut rows = stmt.query([kb_id])?;
             while let Some(row) = rows.next()? {
                 docs.push(Self::map_summary_row(row)?);
             }
         };
+        
+        Ok(docs)
+    }
+    
+    /// 加载知识库的所有文档（包括分组和未分组）
+    pub fn list_all_documents(&self, kb_id: &str) -> Result<Vec<DocumentSummary>> {
+        let conn = self.conn.lock().unwrap();
+        let mut stmt = conn.prepare(
+            "SELECT id, kb_id, parent_id, folder_id, title, content_type, word_count, is_pinned, is_favorite, updated_at, position
+             FROM documents WHERE kb_id = ?1 AND status = 'active'
+             ORDER BY folder_id, is_pinned DESC, position ASC, created_at ASC"
+        )?;
+        
+        let mut docs = Vec::new();
+        let mut rows = stmt.query([kb_id])?;
+        while let Some(row) = rows.next()? {
+            docs.push(Self::map_summary_row(row)?);
+        }
         
         Ok(docs)
     }
@@ -322,11 +397,13 @@ impl Database {
     }
     
     pub fn delete_document(&self, id: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE documents SET status = 'deleted', updated_at = ?1 WHERE id = ?2",
-            params![chrono::Utc::now(), id],
-        )?;
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        
+        // 硬删除文档，依赖外键级联删除关联数据
+        tx.execute("DELETE FROM documents WHERE id = ?1", [id])?;
+        
+        tx.commit()?;
         Ok(())
     }
     
@@ -361,10 +438,11 @@ impl Database {
             updated_at: row.get(17)?,
             tags: vec![],
             links: vec![],
+            position: row.get(18).ok(),  // position 字段
         })
     }
     
-    /// 获取知识库的存储路径
+    /// 获取知识库的存储路径（相对路径）
     pub fn get_kb_storage_path(&self, kb_id: &str) -> Result<PathBuf> {
         let conn = self.conn.lock().unwrap();
         let path: String = conn.query_row(
@@ -373,6 +451,13 @@ impl Database {
             |row| row.get(0),
         )?;
         Ok(PathBuf::from(path))
+    }
+    
+    /// 获取知识库的完整存储路径（基于数据目录）
+    pub fn get_kb_full_storage_path(&self, kb_id: &str) -> Result<PathBuf> {
+        let data_dir = Self::get_data_dir()?;
+        let storage_path = self.get_kb_storage_path(kb_id)?;
+        Ok(data_dir.join(storage_path))
     }
     
     // ==================== 文件夹操作 ====================
@@ -432,23 +517,62 @@ impl Database {
     }
     
     pub fn delete_folder(&self, folder_id: &str) -> Result<()> {
-        let conn = self.conn.lock().unwrap();
-        // 先将文件夹内的文档设置为未分组
-        conn.execute(
-            "UPDATE documents SET folder_id = NULL, updated_at = ?1 WHERE folder_id = ?2",
-            params![Utc::now().to_rfc3339(), folder_id],
+        let mut conn = self.conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        
+        // 1. 先删除该文件夹内的所有文档（硬删除）
+        tx.execute(
+            "DELETE FROM documents WHERE folder_id = ?1",
+            [folder_id],
         )?;
-        // 再删除文件夹
-        conn.execute("DELETE FROM folders WHERE id = ?1", [folder_id])?;
+        
+        // 2. 递归删除子文件夹及其文档
+        // 获取所有子文件夹 ID
+        let mut stmt = tx.prepare(
+            "WITH RECURSIVE folder_tree(id) AS (
+                SELECT id FROM folders WHERE parent_id = ?1
+                UNION ALL
+                SELECT f.id FROM folders f 
+                INNER JOIN folder_tree ft ON f.parent_id = ft.id
+            )
+            SELECT id FROM folder_tree"
+        )?;
+        let child_folders: Vec<String> = stmt.query_map([folder_id], |row| row.get(0))?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+        drop(stmt);
+        
+        // 删除子文件夹内的文档
+        for child_id in &child_folders {
+            tx.execute("DELETE FROM documents WHERE folder_id = ?1", [child_id])?;
+        }
+        
+        // 删除子文件夹
+        tx.execute(
+            "DELETE FROM folders WHERE parent_id = ?1",
+            [folder_id],
+        )?;
+        
+        // 3. 最后删除文件夹本身
+        tx.execute("DELETE FROM folders WHERE id = ?1", [folder_id])?;
+        
+        tx.commit()?;
         Ok(())
     }
     
-    pub fn move_document_to_folder(&self, doc_id: &str, folder_id: Option<&str>) -> Result<()> {
+    pub fn move_document_to_folder(&self, doc_id: &str, folder_id: Option<&str>, position: Option<f64>) -> Result<()> {
         let conn = self.conn.lock().unwrap();
-        conn.execute(
-            "UPDATE documents SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
-            params![folder_id, Utc::now().to_rfc3339(), doc_id],
-        )?;
+        
+        if let Some(pos) = position {
+            conn.execute(
+                "UPDATE documents SET folder_id = ?1, position = ?2, updated_at = ?3 WHERE id = ?4",
+                params![folder_id, pos, Utc::now().to_rfc3339(), doc_id],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE documents SET folder_id = ?1, updated_at = ?2 WHERE id = ?3",
+                params![folder_id, Utc::now().to_rfc3339(), doc_id],
+            )?;
+        }
         Ok(())
     }
     

@@ -55,9 +55,15 @@ async fn main() -> anyhow::Result<()> {
             info!("App data directory: {:?}", app_data);
             
             // 显示主窗口
+            info!("Setting up main window...");
             if let Some(window) = app.get_webview_window("main") {
+                info!("Main window found, showing...");
                 window.show()?;
                 window.set_focus()?;
+                window.center()?;
+                info!("Main window should be visible now");
+            } else {
+                error!("Main window NOT found!");
             }
             
             Ok(())
@@ -71,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
             commands::document::delete_document,
             commands::document::move_document,
             commands::document::list_documents,
+            commands::document::list_all_documents,
             commands::document::search_documents,
             
             // 知识库操作
@@ -99,6 +106,12 @@ async fn main() -> anyhow::Result<()> {
             commands::ai::generate_completion,
             commands::ai::chat_with_context,
             commands::ai::get_suggestions,
+            commands::ai::continue_writing,
+            commands::ai::polish_text,
+            commands::ai::generate_summary,
+            commands::ai::translate_text,
+            commands::ai::generate_tags,
+            commands::ai::find_similar_documents,
             
             // 系统
             commands::system::get_app_info,

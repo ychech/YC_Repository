@@ -100,14 +100,16 @@ export async function createDocument(
   title: string,
   content?: string,
   parentId?: string,
-  folderId?: string
+  folderId?: string,
+  contentType?: 'markdown' | 'canvas' | 'database'
 ): Promise<Document> {
   return invoke('create_document', { 
     kbId, 
     title, 
     content: content || '', 
     parentId: parentId || null,
-    folderId: folderId || null
+    folderId: folderId || null,
+    contentType: contentType || 'markdown'
   })
 }
 
@@ -131,8 +133,13 @@ export async function deleteDocument(id: string): Promise<void> {
   return invoke('delete_document', { id })
 }
 
-export async function moveDocument(id: string, parentId?: string, folderId?: string): Promise<Document> {
-  return invoke('move_document', { id, parentId: parentId || null, folderId: folderId || null })
+export async function moveDocument(id: string, parentId?: string | null, folderId?: string | null, position?: number): Promise<Document> {
+  return invoke('move_document', { 
+    id, 
+    parentId: parentId || null, 
+    folderId: folderId || null,
+    position: position || null
+  })
 }
 
 export async function listDocuments(kbId: string, parentId?: string, folderId?: string): Promise<Document[]> {
@@ -141,6 +148,10 @@ export async function listDocuments(kbId: string, parentId?: string, folderId?: 
     parentId: parentId || null,
     folderId: folderId || null
   })
+}
+
+export async function listAllDocuments(kbId: string): Promise<Document[]> {
+  return invoke('list_all_documents', { kbId })
 }
 
 export async function searchDocuments(query: string, kbId?: string): Promise<Document[]> {
@@ -310,8 +321,12 @@ export async function translateText(text: string, targetLang: string): Promise<s
 }
 
 // ===== 系统相关 =====
-export async function getAppInfo(): Promise<{ version: string; name: string }> {
+export async function getAppInfo(): Promise<{ version: string; name: string; data_dir?: string }> {
   return invoke('get_app_info')
+}
+
+export async function openDataDirectory(): Promise<void> {
+  return invoke('open_data_directory')
 }
 
 export async function openSettings(): Promise<void> {

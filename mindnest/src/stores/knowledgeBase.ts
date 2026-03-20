@@ -20,6 +20,7 @@ export interface Folder {
   parentId?: string
   name: string
   icon?: string
+  position?: number
   createdAt: Date
   updatedAt: Date
 }
@@ -44,6 +45,8 @@ interface KnowledgeBaseState {
   updateFolder: (folderId: string, updates: Partial<Folder>) => Promise<void>
   setCurrentFolder: (folderId: string | null) => void
   deleteFolder: (folderId: string) => Promise<void>
+  moveFolder: (folderId: string, targetParentId: string | null) => Promise<void>
+  setFolders: (folders: Folder[]) => void
 }
 
 export const useKnowledgeBaseStore = create<KnowledgeBaseState>()(
@@ -210,7 +213,37 @@ export const useKnowledgeBaseStore = create<KnowledgeBaseState>()(
           }))
         } catch (error) {
           console.error('[KBStore] Failed to delete folder:', error)
+          throw error
         }
+      },
+
+      moveFolder: async (folderId, targetParentId) => {
+        try {
+          set((state) => ({
+            folders: state.folders.map(f =>
+              f.id === folderId
+                ? { ...f, parentId: targetParentId || undefined, updatedAt: new Date() }
+                : f
+            )
+          }))
+          
+          // 更新后端
+          const folder = get().folders.find(f => f.id === folderId)
+          if (folder) {
+            await tauri.updateFolder({
+              ...folder,
+              parentId: targetParentId || undefined,
+              updatedAt: new Date().toISOString(),
+            } as any)
+          }
+        } catch (error) {
+          console.error('[KBStore] Failed to move folder:', error)
+          throw error
+        }
+      },
+
+      setFolders: (folders) => {
+        set({ folders })
       },
     }),
     {

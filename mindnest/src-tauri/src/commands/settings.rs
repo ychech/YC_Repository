@@ -192,7 +192,7 @@ pub async fn get_settings(state: State<'_, AppState>) -> Result<AppSettings> {
     let conn = state.db_pool.conn.lock().unwrap();
     
     let result: Result<String> = conn.query_row(
-        "SELECT editor FROM user_settings WHERE user_id = ?1",
+        "SELECT settings FROM user_settings WHERE user_id = ?1",
         [SETTINGS_USER_ID],
         |row| row.get::<_, String>(0),
     ).map_err(|e| e.into());
@@ -222,12 +222,12 @@ pub async fn update_settings(
     
     let conn = state.db_pool.conn.lock().unwrap();
     conn.execute(
-        "INSERT INTO user_settings (user_id, editor, ai, shortcuts, privacy, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO user_settings (user_id, settings, updated_at)
+         VALUES (?1, ?2, ?3)
          ON CONFLICT(user_id) DO UPDATE SET
-            editor = excluded.editor,
+            settings = excluded.settings,
             updated_at = excluded.updated_at",
-        rusqlite::params![SETTINGS_USER_ID, json_str, "{}", "{}", "{}", now],
+        rusqlite::params![SETTINGS_USER_ID, json_str, now],
     )?;
     
     Ok(settings)
@@ -244,12 +244,12 @@ pub async fn reset_settings(state: State<'_, AppState>) -> Result<AppSettings> {
     
     let conn = state.db_pool.conn.lock().unwrap();
     conn.execute(
-        "INSERT INTO user_settings (user_id, editor, ai, shortcuts, privacy, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+        "INSERT INTO user_settings (user_id, settings, updated_at)
+         VALUES (?1, ?2, ?3)
          ON CONFLICT(user_id) DO UPDATE SET
-            editor = excluded.editor,
+            settings = excluded.settings,
             updated_at = excluded.updated_at",
-        rusqlite::params![SETTINGS_USER_ID, json_str, "{}", "{}", "{}", now],
+        rusqlite::params![SETTINGS_USER_ID, json_str, now],
     )?;
     
     Ok(default)

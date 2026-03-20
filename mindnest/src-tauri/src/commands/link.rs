@@ -6,8 +6,8 @@ use crate::models::*;
 #[tauri::command]
 #[specta::specta]
 pub async fn get_linked_documents(
-    state: State<'_, AppState>,
-    doc_id: String,
+    _state: State<'_, AppState>,
+    _doc_id: String,
 ) -> Result<Vec<DocumentSummary>> {
     // TODO: 实现
     Ok(vec![])

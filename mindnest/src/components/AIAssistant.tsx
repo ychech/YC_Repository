@@ -172,7 +172,7 @@ export function AIAssistant({
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full shadow-xl shadow-blue-500/30 flex items-center justify-center hover:shadow-2xl hover:scale-105 transition-all z-50"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-gradient-to-r from-gray-600 to-purple-600 text-white rounded-full shadow-xl shadow-gray-500/30 flex items-center justify-center hover:shadow-2xl hover:scale-105 transition-all z-50"
       >
         <Sparkles className="w-6 h-6" />
       </motion.button>
@@ -187,9 +187,9 @@ export function AIAssistant({
       className="fixed bottom-6 right-6 w-96 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
     >
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-blue-500/5 to-purple-500/5">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-gradient-to-r from-gray-500/5 to-purple-500/5">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-600 to-purple-600 flex items-center justify-center">
             <Sparkles className="w-4 h-4 text-white" />
           </div>
           <div>
@@ -217,7 +217,7 @@ export function AIAssistant({
                 disabled={isLoading || (!documentContent && !selectedText)}
                 className="flex items-center gap-2 px-3 py-2 text-left rounded-lg hover:bg-accent disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <Icon className="w-4 h-4 text-blue-500" />
+                <Icon className="w-4 h-4 text-gray-500" />
                 <div>
                   <div className="text-sm font-medium">{action.label}</div>
                   <div className="text-[10px] text-muted-foreground">{action.description}</div>
@@ -249,7 +249,7 @@ export function AIAssistant({
 
         {/* 选中文本提示 */}
         {selectedText && (
-          <div className="mt-2 p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300 flex items-center gap-1.5">
+          <div className="mt-2 p-2 bg-gray-100 dark:bg-gray-800 rounded-lg text-xs text-gray-700 dark:text-gray-300 flex items-center gap-1.5">
             <Check className="w-3.5 h-3.5" />
             已选中 {selectedText.length} 个字符
           </div>
@@ -298,14 +298,14 @@ export function AIAssistant({
                   <div className="flex items-center gap-1 mt-2">
                     <button
                       onClick={() => onInsertText?.(message.content.replace(/\*\*/g, ''))}
-                      className="text-xs text-blue-500 hover:underline"
+                      className="text-xs text-gray-500 hover:underline"
                     >
                       插入
                     </button>
                     <span className="text-muted-foreground">·</span>
                     <button
                       onClick={() => onReplaceText?.(message.content.replace(/\*\*/g, ''))}
-                      className="text-xs text-blue-500 hover:underline"
+                      className="text-xs text-gray-500 hover:underline"
                     >
                       替换
                     </button>
@@ -324,7 +324,7 @@ export function AIAssistant({
         )}
         {isLoading && (
           <div className="flex gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-gray-600 to-purple-600 flex items-center justify-center">
               <Loader2 className="w-4 h-4 text-white animate-spin" />
             </div>
             <div className="bg-muted rounded-2xl px-4 py-2">

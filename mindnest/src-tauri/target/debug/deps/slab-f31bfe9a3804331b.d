@@ -1,6 +1,0 @@
-/Users/yc/IdeaProjects/pytest/yuque/mindnest/src-tauri/target/debug/deps/slab-f31bfe9a3804331b.d: /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/lib.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/builder.rs
-
-/Users/yc/IdeaProjects/pytest/yuque/mindnest/src-tauri/target/debug/deps/libslab-f31bfe9a3804331b.rmeta: /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/lib.rs /Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/builder.rs
-
-/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/lib.rs:
-/Users/yc/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/slab-0.4.12/src/builder.rs:

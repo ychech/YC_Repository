@@ -106,7 +106,7 @@ function TreeItem({
         )}
         <Icon className={cn(
           "w-4 h-4 shrink-0",
-          item.type === 'folder' && "text-blue-500",
+          item.type === 'folder' && "text-gray-500",
           item.name.endsWith('.md') && "text-gray-500",
           item.name.endsWith('.mn') && "text-purple-500"
         )} />
@@ -170,7 +170,7 @@ function GridItem({
     >
       <Icon className={cn(
         "w-12 h-12 mb-3",
-        item.type === 'folder' && "text-blue-500",
+        item.type === 'folder' && "text-gray-500",
         item.name.endsWith('.md') && "text-gray-500",
         item.name.endsWith('.mn') && "text-purple-500"
       )} />
@@ -217,7 +217,7 @@ function ListItem({
     >
       <Icon className={cn(
         "w-5 h-5 shrink-0",
-        item.type === 'folder' && "text-blue-500",
+        item.type === 'folder' && "text-gray-500",
         item.name.endsWith('.md') && "text-gray-500",
         item.name.endsWith('.mn') && "text-purple-500"
       )} />
@@ -431,7 +431,7 @@ export function FileExplorer({
                       onClick={() => { onCreateFile('document', 'markdown'); setShowNewMenu(false); }}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-accent transition-colors"
                     >
-                      <FileText className="w-4 h-4 text-blue-500" />
+                      <FileText className="w-4 h-4 text-gray-500" />
                       Markdown 文档 (.md)
                     </button>
                     <button
@@ -461,7 +461,7 @@ export function FileExplorer({
                       onClick={() => { onCreateFolder(); setShowNewMenu(false); }}
                       className="w-full flex items-center gap-3 px-4 py-2 text-sm hover:bg-accent transition-colors"
                     >
-                      <FolderPlus className="w-4 h-4 text-blue-500" />
+                      <FolderPlus className="w-4 h-4 text-gray-500" />
                       新建文件夹
                     </button>
                   </motion.div>

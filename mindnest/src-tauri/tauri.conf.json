@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "MindNest",
         "width": 1400,
         "height": 900,
@@ -22,7 +23,7 @@
         "transparent": false,
         "resizable": true,
         "fullscreen": false,
-        "visible": false,
+        "visible": true,
         "shadow": true
       }
     ],

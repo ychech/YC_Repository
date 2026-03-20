@@ -74,7 +74,7 @@ export function WikiLink({ title, docId }: WikiLinkProps) {
         className={cn(
           "cursor-pointer rounded px-1 transition-colors",
           targetDoc 
-            ? "text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/30" 
+            ? "text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800" 
             : "text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 border-b border-dashed border-gray-300"
         )}
       >
@@ -98,8 +98,8 @@ export function WikiLink({ title, docId }: WikiLinkProps) {
             <div className="bg-popover border border-border rounded-xl shadow-2xl overflow-hidden">
               {/* 预览头部 */}
               <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-muted/30">
-                <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                  <FileText className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <div className="w-8 h-8 rounded-lg bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
+                  <FileText className="w-4 h-4 text-gray-400" />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-medium truncate">{targetDoc.title}</div>
@@ -131,7 +131,7 @@ export function WikiLink({ title, docId }: WikiLinkProps) {
               <div className="px-4 py-2 bg-muted/30 border-t border-border text-xs text-muted-foreground flex items-center justify-between">
                 <span>点击进入文档</span>
                 {previewDoc?.isFavorite && (
-                  <span className="text-amber-500">⭐ 已收藏</span>
+                  <span className="text-gray-500">⭐ 已收藏</span>
                 )}
               </div>
             </div>

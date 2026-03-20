@@ -74,7 +74,7 @@ export const defaultSettings: AppSettings = {
     theme: 'system',
     language: 'zh-CN',
     startupBehavior: 'continue',
-    autoSaveInterval: 30,
+    autoSaveInterval: 45,
     showLineNumbers: false,
     fontSize: 16,
     fontFamily: 'system-ui, -apple-system, sans-serif',
@@ -316,11 +316,14 @@ export function formatShortcut(shortcut: string): string {
 // 字体大小选项
 export const fontSizeOptions = [12, 14, 16, 18, 20, 22, 24]
 
-// 自动保存间隔选项
+// 自动保存间隔选项（秒）
 export const autoSaveOptions = [
   { value: 0, label: '禁用' },
+  { value: 1, label: '1 秒' },
+  { value: 5, label: '5 秒' },
   { value: 10, label: '10 秒' },
   { value: 30, label: '30 秒' },
   { value: 60, label: '1 分钟' },
   { value: 300, label: '5 分钟' },
+  { value: -1, label: '自定义' },
 ]
