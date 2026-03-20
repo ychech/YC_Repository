@@ -43,6 +43,7 @@ export function SortableFolder({
   const [renameValue, setRenameValue] = useState(name)
   const createMenuRef = useRef<HTMLDivElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
+  const renameInputRef = useRef<HTMLInputElement>(null)
   
   // 文件夹本身可排序
   const {
@@ -100,7 +101,7 @@ export function SortableFolder({
     }
   }
 
-  // 点击外部关闭菜单或保存重命名
+  // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
@@ -109,21 +110,10 @@ export function SortableFolder({
       if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
         setShowMoreMenu(false)
       }
-      // 重命名状态下点击外部自动保存
-      if (isRenaming) {
-        const target = event.target as Node
-        const inputElement = document.activeElement
-        if (inputElement && inputElement.tagName === 'INPUT') {
-          // 如果点击的不是输入框本身，保存并退出编辑
-          if (!inputElement.contains(target)) {
-            handleRename()
-          }
-        }
-      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isRenaming, handleRename])
+  }, [])
 
   const handleCreate = (type: DocumentType) => {
     onCreate?.(type)
@@ -188,11 +178,15 @@ export function SortableFolder({
         {/* 文件夹名称（可编辑） */}
         {isRenaming ? (
           <input
+            ref={renameInputRef}
             type="text"
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={handleKeyDown}
-            onBlur={handleRename}
+            onBlur={(e) => {
+              // 延迟保存，确保其他点击事件先处理
+              setTimeout(() => handleRename(), 100)
+            }}
             onClick={(e) => e.stopPropagation()}
             autoFocus
             className="flex-1 min-w-0 max-w-[100px] bg-gray-800 text-gray-200 text-sm px-2 py-0.5 rounded border border-blue-500 outline-none"
