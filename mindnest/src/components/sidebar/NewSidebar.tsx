@@ -28,6 +28,7 @@ interface FolderTreeProps {
   onToggle: (id: string) => void
   onDelete: (id: string) => void
   onDeleteFolder: (id: string) => void
+  onRenameFolder: (id: string, newName: string) => void
   onNavigate: (id: string) => void
   onCreateInFolder: (folderId: string, type: DocumentType) => void
   activeDocId?: string
@@ -42,6 +43,7 @@ function FolderTree({
   onToggle,
   onDelete,
   onDeleteFolder,
+  onRenameFolder,
   onNavigate,
   onCreateInFolder,
   activeDocId,
@@ -72,6 +74,7 @@ function FolderTree({
             onToggle={() => onToggle(folder.id)}
             onCreate={(type) => onCreateInFolder(folder.id, type)}
             onDelete={() => onDeleteFolder(folder.id)}
+            onRename={(newName) => onRenameFolder(folder.id, newName)}
           >
             {isExpanded && (
               <>
@@ -85,6 +88,7 @@ function FolderTree({
                   onToggle={onToggle}
                   onDelete={onDelete}
                   onDeleteFolder={onDeleteFolder}
+                  onRenameFolder={onRenameFolder}
                   onNavigate={onNavigate}
                   onCreateInFolder={onCreateInFolder}
                   activeDocId={activeDocId}
@@ -126,7 +130,7 @@ export function NewSidebar() {
   
   // Store
   const { documents, deleteDocument, createDocument } = useDocumentStore()
-  const { knowledgeBases, currentKbId, folders, createFolder, deleteFolder, createKnowledgeBase, setCurrentKb, deleteKnowledgeBase } = useKnowledgeBaseStore()
+  const { knowledgeBases, currentKbId, folders, createFolder, deleteFolder, updateFolder, createKnowledgeBase, setCurrentKb, deleteKnowledgeBase } = useKnowledgeBaseStore()
 
   // 计算属性
   const currentKb = useMemo(() =>
@@ -231,6 +235,17 @@ export function NewSidebar() {
     } catch (error) {
       console.error('[NewSidebar] 删除文件夹失败:', error)
       alert(`删除文件夹失败: ${error}`)
+    }
+  }
+
+  // 重命名文件夹
+  const handleRenameFolder = async (folderId: string, newName: string) => {
+    if (!newName.trim()) return
+    try {
+      await updateFolder(folderId, { name: newName.trim() })
+    } catch (error) {
+      console.error('[NewSidebar] 重命名文件夹失败:', error)
+      alert(`重命名失败: ${error}`)
     }
   }
 

@@ -5,7 +5,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, ChevronRight, ChevronDown, Folder, FolderOpen, Plus, Trash2, FileText, Table2, LayoutGrid, StickyNote } from 'lucide-react'
+import { GripVertical, ChevronRight, ChevronDown, Folder, FolderOpen, Plus, Trash2, FileText, Table2, LayoutGrid, StickyNote, MoreVertical, Pencil } from 'lucide-react'
 import { cn } from '../../utils/cn'
 import type { DocumentType } from '../../stores/document'
 
@@ -19,6 +19,7 @@ interface SortableFolderProps {
   onToggle: () => void
   onCreate?: (type: DocumentType) => void
   onDelete?: () => void
+  onRename?: (newName: string) => void
   children?: React.ReactNode
 }
 
@@ -32,11 +33,16 @@ export function SortableFolder({
   onToggle,
   onCreate,
   onDelete,
+  onRename,
   children,
 }: SortableFolderProps) {
   const sortableId = `folder-${id}`
   const [showCreateMenu, setShowCreateMenu] = useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
+  const [showMoreMenu, setShowMoreMenu] = useState(false)
+  const [isRenaming, setIsRenaming] = useState(false)
+  const [renameValue, setRenameValue] = useState(name)
+  const createMenuRef = useRef<HTMLDivElement>(null)
+  const moreMenuRef = useRef<HTMLDivElement>(null)
   
   // 文件夹本身可排序
   const {
@@ -79,8 +85,11 @@ export function SortableFolder({
   // 点击外部关闭菜单
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
         setShowCreateMenu(false)
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -90,6 +99,23 @@ export function SortableFolder({
   const handleCreate = (type: DocumentType) => {
     onCreate?.(type)
     setShowCreateMenu(false)
+  }
+
+  const handleRename = () => {
+    if (renameValue.trim() && renameValue !== name) {
+      onRename?.(renameValue.trim())
+    }
+    setIsRenaming(false)
+    setShowMoreMenu(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleRename()
+    } else if (e.key === 'Escape') {
+      setRenameValue(name)
+      setIsRenaming(false)
+    }
   }
 
   return (
@@ -147,13 +173,26 @@ export function SortableFolder({
           )}
         </span>
 
-        {/* 文件夹名称 */}
-        <span className={cn(
-          "flex-1 truncate transition-colors duration-200",
-          isReceiving && "text-blue-300"
-        )}>
-          {name}
-        </span>
+        {/* 文件夹名称（可编辑） */}
+        {isRenaming ? (
+          <input
+            type="text"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={handleKeyDown}
+            onBlur={handleRename}
+            onClick={(e) => e.stopPropagation()}
+            autoFocus
+            className="flex-1 bg-gray-800 text-gray-200 text-sm px-2 py-0.5 rounded border border-gray-600 outline-none focus:border-blue-500"
+          />
+        ) : (
+          <span className={cn(
+            "flex-1 truncate transition-colors duration-200",
+            isReceiving && "text-blue-300"
+          )}>
+            {name}
+          </span>
+        )}
 
         {/* 文档数量 */}
         {docCount > 0 && (
@@ -173,7 +212,7 @@ export function SortableFolder({
           >
             {/* 新建按钮（带下拉菜单） */}
             {onCreate && (
-              <div className="relative" ref={menuRef}>
+              <div className="relative" ref={createMenuRef}>
                 <button
                   onClick={(e) => {
                     e.stopPropagation()
@@ -229,18 +268,59 @@ export function SortableFolder({
                 )}
               </div>
             )}
-            {/* 删除按钮 */}
-            {onDelete && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  onDelete()
-                }}
-                className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-red-400 transition-colors"
-                title="删除文件夹"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+            {/* 更多操作按钮（三个点） */}
+            {(onDelete || onRename) && (
+              <div className="relative" ref={moreMenuRef}>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setShowMoreMenu(!showMoreMenu)
+                  }}
+                  className="p-1 rounded hover:bg-gray-700 text-gray-500 hover:text-gray-300 transition-colors"
+                  title="更多操作"
+                >
+                  <MoreVertical className="w-3.5 h-3.5" />
+                </button>
+                
+                {/* 更多操作菜单 */}
+                {showMoreMenu && (
+                  <>
+                    {/* 遮罩层 */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowMoreMenu(false)} 
+                    />
+                    {/* 菜单内容 */}
+                    <div className="absolute right-0 top-full mt-1 w-36 bg-gray-900 border border-gray-700 rounded-lg shadow-xl z-50 py-1">
+                      {onRename && (
+                        <button
+                          onClick={() => {
+                            setIsRenaming(true)
+                            setRenameValue(name)
+                            setShowMoreMenu(false)
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-300 hover:bg-gray-800"
+                        >
+                          <Pencil className="w-4 h-4 text-gray-400" />
+                          重命名
+                        </button>
+                      )}
+                      {onDelete && (
+                        <button
+                          onClick={() => {
+                            onDelete()
+                            setShowMoreMenu(false)
+                          }}
+                          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-400 hover:bg-gray-800"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          删除
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         )}
