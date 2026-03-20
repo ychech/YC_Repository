@@ -1,7 +1,7 @@
 /**
  * 可拖拽文件夹组件
  */
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -44,6 +44,12 @@ export function SortableFolder({
   const createMenuRef = useRef<HTMLDivElement>(null)
   const moreMenuRef = useRef<HTMLDivElement>(null)
   const renameInputRef = useRef<HTMLInputElement>(null)
+  const isRenamingRef = useRef(isRenaming)
+  
+  // 同步 isRenaming 状态到 ref
+  useEffect(() => {
+    isRenamingRef.current = isRenaming
+  }, [isRenaming])
   
   // 文件夹本身可排序
   const {
@@ -84,13 +90,13 @@ export function SortableFolder({
   const isReceiving = isOver && active?.id !== sortableId
 
   // 重命名处理函数
-  const handleRename = useCallback(() => {
+  const handleRename = () => {
     if (renameValue.trim() && renameValue !== name) {
       onRename?.(renameValue.trim())
     }
     setIsRenaming(false)
     setShowMoreMenu(false)
-  }, [renameValue, name, onRename])
+  }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -114,16 +120,22 @@ export function SortableFolder({
         setShowMoreMenu(false)
       }
       
-      // 重命名状态下，点击输入框外部就保存
-      if (isRenaming && renameInputRef.current) {
+      // 重命名状态下点击外部保存（使用 refs 避免闭包问题）
+      if (isRenamingRef.current && renameInputRef.current) {
         if (!renameInputRef.current.contains(target)) {
-          handleRename()
+          // 直接执行保存逻辑，不依赖闭包
+          const currentValue = renameInputRef.current?.value || ''
+          if (currentValue.trim() && currentValue !== name) {
+            onRename?.(currentValue.trim())
+          }
+          setIsRenaming(false)
+          setShowMoreMenu(false)
         }
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isRenaming, handleRename])
+  }, [name, onRename])
 
   const handleCreate = (type: DocumentType) => {
     onCreate?.(type)
