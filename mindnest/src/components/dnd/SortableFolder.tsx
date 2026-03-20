@@ -1,7 +1,7 @@
 /**
  * 可拖拽文件夹组件
  */
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -82,32 +82,14 @@ export function SortableFolder({
   // 判断是否有东西正在被拖到这个文件夹上
   const isReceiving = isOver && active?.id !== sortableId
 
-  // 点击外部关闭菜单
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
-        setShowCreateMenu(false)
-      }
-      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
-        setShowMoreMenu(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
-
-  const handleCreate = (type: DocumentType) => {
-    onCreate?.(type)
-    setShowCreateMenu(false)
-  }
-
-  const handleRename = () => {
+  // 重命名处理函数
+  const handleRename = useCallback(() => {
     if (renameValue.trim() && renameValue !== name) {
       onRename?.(renameValue.trim())
     }
     setIsRenaming(false)
     setShowMoreMenu(false)
-  }
+  }, [renameValue, name, onRename])
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
@@ -116,6 +98,36 @@ export function SortableFolder({
       setRenameValue(name)
       setIsRenaming(false)
     }
+  }
+
+  // 点击外部关闭菜单或保存重命名
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(event.target as Node)) {
+        setShowCreateMenu(false)
+      }
+      if (moreMenuRef.current && !moreMenuRef.current.contains(event.target as Node)) {
+        setShowMoreMenu(false)
+      }
+      // 重命名状态下点击外部自动保存
+      if (isRenaming) {
+        const target = event.target as Node
+        const inputElement = document.activeElement
+        if (inputElement && inputElement.tagName === 'INPUT') {
+          // 如果点击的不是输入框本身，保存并退出编辑
+          if (!inputElement.contains(target)) {
+            handleRename()
+          }
+        }
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [isRenaming, handleRename])
+
+  const handleCreate = (type: DocumentType) => {
+    onCreate?.(type)
+    setShowCreateMenu(false)
   }
 
   return (
@@ -183,11 +195,11 @@ export function SortableFolder({
             onBlur={handleRename}
             onClick={(e) => e.stopPropagation()}
             autoFocus
-            className="flex-1 bg-gray-800 text-gray-200 text-sm px-2 py-0.5 rounded border border-gray-600 outline-none focus:border-blue-500"
+            className="flex-1 min-w-0 max-w-[100px] bg-gray-800 text-gray-200 text-sm px-2 py-0.5 rounded border border-blue-500 outline-none"
           />
         ) : (
           <span className={cn(
-            "flex-1 truncate transition-colors duration-200",
+            "flex-1 min-w-0 truncate transition-colors duration-200",
             isReceiving && "text-blue-300"
           )}>
             {name}
